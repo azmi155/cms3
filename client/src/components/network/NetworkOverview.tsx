@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { NetworkTopology } from './NetworkTopology';
-import { Wifi, Users, Activity, CheckCircle, AlertCircle, RefreshCw, Server, Globe, Database, Clock, UserPlus, Cpu, MemoryStick, HardDrive, Monitor } from 'lucide-react';
+import { Wifi, Users, Activity, CheckCircle, AlertCircle, RefreshCw, Server, Globe, Database, Clock, UserPlus, Cpu, MemoryStick, HardDrive, Monitor, Router, Zap } from 'lucide-react';
 
 interface NetworkOverviewProps {
   onNavigateToTab?: (tab: string) => void;
@@ -22,6 +22,7 @@ export const NetworkOverview = ({ onNavigateToTab }: NetworkOverviewProps) => {
     disk: { percentage: 0 },
     uptime: 0
   });
+  const [mikrotikInfo, setMikrotikInfo] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [lastUpdate, setLastUpdate] = React.useState(new Date());
 
@@ -55,14 +56,39 @@ export const NetworkOverview = ({ onNavigateToTab }: NetworkOverviewProps) => {
       }
     } catch (error) {
       console.error('Error fetching system statistics:', error);
-    } finally {
-      setLoading(false);
+    }
+  };
+
+  const fetchMikrotikInfo = async () => {
+    try {
+      console.log('Fetching MikroTik device information...');
+      const devicesResponse = await fetch('/api/devices');
+      if (devicesResponse.ok) {
+        const devices = await devicesResponse.json();
+        const onlineMikrotik = devices.find(d => 
+          d.type.toLowerCase() === 'mikrotik' && d.status === 'online'
+        );
+        
+        if (onlineMikrotik) {
+          const infoResponse = await fetch(`/api/devices/${onlineMikrotik.id}/info`);
+          if (infoResponse.ok) {
+            const info = await infoResponse.json();
+            setMikrotikInfo({
+              deviceName: onlineMikrotik.name,
+              ...info
+            });
+            console.log('MikroTik info loaded');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching MikroTik info:', error);
     }
   };
 
   const fetchAllData = async () => {
     setLoading(true);
-    await Promise.all([fetchStats(), fetchSystemStats()]);
+    await Promise.all([fetchStats(), fetchSystemStats(), fetchMikrotikInfo()]);
     setLoading(false);
   };
 
@@ -439,6 +465,64 @@ export const NetworkOverview = ({ onNavigateToTab }: NetworkOverviewProps) => {
           </CardContent>
         </Card>
       </div>
+
+      {/* MikroTik Device Information */}
+      {mikrotikInfo && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Router className="h-5 w-5 text-blue-500" />
+              <span>MikroTik Device Information</span>
+            </CardTitle>
+            <CardDescription>Live information from connected MikroTik device</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="text-center p-4 bg-blue-50 rounded-lg">
+                <Router className="h-8 w-8 text-blue-500 mx-auto mb-2" />
+                <div className="text-lg font-bold text-blue-600">{mikrotikInfo.deviceName}</div>
+                <div className="text-sm text-muted-foreground">Device Name</div>
+              </div>
+              
+              <div className="text-center p-4 bg-green-50 rounded-lg">
+                <Zap className="h-8 w-8 text-green-500 mx-auto mb-2" />
+                <div className="text-lg font-bold text-green-600">
+                  {mikrotikInfo.resource?.version || 'Unknown'}
+                </div>
+                <div className="text-sm text-muted-foreground">RouterOS Version</div>
+              </div>
+              
+              <div className="text-center p-4 bg-purple-50 rounded-lg">
+                <Cpu className="h-8 w-8 text-purple-500 mx-auto mb-2" />
+                <div className="text-lg font-bold text-purple-600">
+                  {mikrotikInfo.resource?.['cpu-load'] || '0'}%
+                </div>
+                <div className="text-sm text-muted-foreground">CPU Load</div>
+              </div>
+              
+              <div className="text-center p-4 bg-orange-50 rounded-lg">
+                <Clock className="h-8 w-8 text-orange-500 mx-auto mb-2" />
+                <div className="text-lg font-bold text-orange-600">
+                  {mikrotikInfo.resource?.uptime || 'Unknown'}
+                </div>
+                <div className="text-sm text-muted-foreground">Device Uptime</div>
+              </div>
+            </div>
+            
+            {mikrotikInfo.resource && (
+              <div className="mt-4 p-4 bg-muted/30 rounded-lg">
+                <h4 className="font-medium mb-2">Additional Information</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                  <div>Board Name: {mikrotikInfo.resource?.['board-name'] || 'Unknown'}</div>
+                  <div>Architecture: {mikrotikInfo.resource?.['architecture-name'] || 'Unknown'}</div>
+                  <div>Memory: {mikrotikInfo.resource?.['total-memory'] || 'Unknown'}</div>
+                  <div>Disk: {mikrotikInfo.resource?.['total-hdd-space'] || 'Unknown'}</div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* System Performance Summary */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

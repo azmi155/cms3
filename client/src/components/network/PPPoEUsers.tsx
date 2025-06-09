@@ -6,11 +6,13 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AddPPPoEUserDialog } from './AddPPPoEUserDialog';
 import { EditPPPoEUserDialog } from './EditPPPoEUserDialog';
-import { Plus, Edit, Trash2, RefreshCw, Eye, MessageCircle, DollarSign, User, Phone, MapPin, Globe, Monitor } from 'lucide-react';
+import { PPPoEUserDetailDialog } from './PPPoEUserDetailDialog';
+import { Plus, Edit, Trash2, RefreshCw, Eye, MessageCircle, DollarSign, User, Phone, MapPin, Globe, Monitor, Info } from 'lucide-react';
 
 export const PPPoEUsers = () => {
   const [showAddDialog, setShowAddDialog] = React.useState(false);
   const [showEditDialog, setShowEditDialog] = React.useState(false);
+  const [showDetailDialog, setShowDetailDialog] = React.useState(false);
   const [selectedUser, setSelectedUser] = React.useState(null);
   const [selectedDevice, setSelectedDevice] = React.useState('');
   const [devices, setDevices] = React.useState([]);
@@ -121,6 +123,12 @@ export const PPPoEUsers = () => {
       console.error('Error fetching PPPoE sessions:', error);
       alert('Error fetching active PPPoE sessions');
     }
+  };
+
+  const handleViewUserDetails = (user) => {
+    console.log('View PPPoE user details:', user);
+    setSelectedUser(user);
+    setShowDetailDialog(true);
   };
 
   const handleEditUser = (user) => {
@@ -295,41 +303,22 @@ export const PPPoEUsers = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="min-w-[150px]">Account Info</TableHead>
-                        <TableHead className="min-w-[120px]">Password</TableHead>
-                        <TableHead className="min-w-[150px]">Customer Details</TableHead>
+                        <TableHead className="min-w-[150px]">Customer Info</TableHead>
+                        <TableHead className="min-w-[120px]">Username</TableHead>
                         <TableHead className="min-w-[120px]">Contact</TableHead>
-                        <TableHead className="min-w-[200px]">Address</TableHead>
-                        <TableHead className="min-w-[120px]">Network</TableHead>
-                        <TableHead className="min-w-[120px]">Remote Device</TableHead>
+                        <TableHead className="min-w-[120px]">IP PPPoE</TableHead>
+                        <TableHead className="min-w-[120px]">Remote</TableHead>
                         <TableHead className="min-w-[100px]">Service</TableHead>
                         <TableHead className="min-w-[120px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {users.map((user) => (
-                        <TableRow key={user.id} className="hover:bg-muted/50">
-                          <TableCell>
-                            <div className="space-y-1">
-                              <div className="font-mono text-sm font-medium">{user.username}</div>
-                              <div className="text-sm">
-                                <span className="font-medium">Profile:</span> {user.profile}
-                              </div>
-                              <div className="text-sm">
-                                <span className="font-medium">Service:</span> {user.service}
-                              </div>
-                              <Badge variant={user.status === 'active' ? 'default' : 'secondary'} className="text-xs">
-                                {user.status}
-                              </Badge>
-                            </div>
-                          </TableCell>
-                          
-                          <TableCell>
-                            <div className="font-mono text-sm bg-muted px-2 py-1 rounded">
-                              {user.password}
-                            </div>
-                          </TableCell>
-
+                        <TableRow 
+                          key={user.id} 
+                          className="hover:bg-muted/50 cursor-pointer"
+                          onClick={() => handleViewUserDetails(user)}
+                        >
                           <TableCell>
                             <div className="space-y-1">
                               {user.real_name ? (
@@ -340,10 +329,33 @@ export const PPPoEUsers = () => {
                               ) : (
                                 <span className="text-xs text-muted-foreground">No name provided</span>
                               )}
+                              
+                              {user.address && (
+                                <div className="flex items-start space-x-1">
+                                  <MapPin className="h-3 w-3 mt-0.5 text-muted-foreground" />
+                                  <span className="text-xs text-muted-foreground text-wrap">{user.address}</span>
+                                </div>
+                              )}
+                              
+                              <Badge variant={user.status === 'active' ? 'default' : 'secondary'} className="text-xs">
+                                {user.status}
+                              </Badge>
+                            </div>
+                          </TableCell>
+                          
+                          <TableCell>
+                            <div className="space-y-1">
+                              <div className="font-mono text-sm font-medium">{user.username}</div>
+                              <div className="text-sm">
+                                <span className="font-medium">Profile:</span> {user.profile}
+                              </div>
+                              <div className="text-sm">
+                                <span className="font-medium">Service:</span> {user.service}
+                              </div>
                             </div>
                           </TableCell>
 
-                          <TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
                             <div className="space-y-2">
                               {user.whatsapp_contact ? (
                                 <Button
@@ -363,19 +375,6 @@ export const PPPoEUsers = () => {
 
                           <TableCell>
                             <div className="space-y-1">
-                              {user.address ? (
-                                <div className="flex items-start space-x-1">
-                                  <MapPin className="h-3 w-3 mt-0.5 text-muted-foreground" />
-                                  <span className="text-sm text-wrap">{user.address}</span>
-                                </div>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">No address</span>
-                              )}
-                            </div>
-                          </TableCell>
-
-                          <TableCell>
-                            <div className="space-y-1">
                               {user.ip_address ? (
                                 <div className="flex items-center space-x-1">
                                   <Globe className="h-3 w-3" />
@@ -387,13 +386,18 @@ export const PPPoEUsers = () => {
                             </div>
                           </TableCell>
 
-                          <TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
                             <div className="space-y-1">
                               {user.remote_device ? (
-                                <div className="flex items-center space-x-1">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => window.open(`http://${user.remote_device}`, '_blank')}
+                                  className="flex items-center space-x-1 text-xs"
+                                >
                                   <Monitor className="h-3 w-3" />
-                                  <span className="font-mono text-sm">{user.remote_device}</span>
-                                </div>
+                                  <span>Remote</span>
+                                </Button>
                               ) : (
                                 <span className="text-xs text-muted-foreground">Not set</span>
                               )}
@@ -414,12 +418,30 @@ export const PPPoEUsers = () => {
                             </div>
                           </TableCell>
 
-                          <TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center space-x-1">
-                              <Button variant="outline" size="sm" onClick={() => handleEditUser(user)}>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => handleViewUserDetails(user)}
+                                title="View Details"
+                              >
+                                <Info className="h-3 w-3" />
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => handleEditUser(user)}
+                                title="Edit User"
+                              >
                                 <Edit className="h-3 w-3" />
                               </Button>
-                              <Button variant="outline" size="sm" onClick={() => handleDeleteUser(user.id)}>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => handleDeleteUser(user.id)}
+                                title="Delete User"
+                              >
                                 <Trash2 className="h-3 w-3" />
                               </Button>
                             </div>
@@ -459,6 +481,19 @@ export const PPPoEUsers = () => {
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Usage Tips */}
+                <Card className="bg-blue-50 border-blue-200">
+                  <CardContent className="p-4">
+                    <h4 className="font-medium mb-2 text-blue-800">Tips:</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-blue-700">
+                      <div>• Click on any user row to view detailed information</div>
+                      <div>• Use WhatsApp button for direct customer contact</div>
+                      <div>• Remote button opens device management interface</div>
+                      <div>• IP PPPoE shows the assigned static IP address</div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             )}
           </CardContent>
@@ -477,6 +512,12 @@ export const PPPoEUsers = () => {
         onOpenChange={setShowEditDialog}
         user={selectedUser}
         onUserUpdated={handleUserUpdated}
+      />
+
+      <PPPoEUserDetailDialog
+        open={showDetailDialog}
+        onOpenChange={setShowDetailDialog}
+        user={selectedUser}
       />
     </div>
   );
