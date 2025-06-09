@@ -1,0 +1,79 @@
+export interface Database {
+  devices: DeviceTable;
+  hotspot_users: HotspotUserTable;
+  pppoe_users: PPPoEUserTable;
+  hotspot_profiles: HotspotProfileTable;
+  pppoe_profiles: PPPoEProfileTable;
+  user_sessions: UserSessionTable;
+}
+
+export interface DeviceTable {
+  id: number;
+  name: string;
+  type: string;
+  ip_address: string;
+  username: string;
+  password: string;
+  status: 'online' | 'offline';
+  last_seen: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HotspotUserTable {
+  id: number;
+  device_id: number;
+  username: string;
+  password: string;
+  profile: string;
+  status: 'active' | 'disabled';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PPPoEUserTable {
+  id: number;
+  device_id: number;
+  username: string;
+  password: string;
+  profile: string;
+  service: string;
+  ip_address: string | null;
+  status: 'active' | 'disabled';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HotspotProfileTable {
+  id: number;
+  device_id: number;
+  name: string;
+  rate_limit: string | null;
+  session_timeout: string | null;
+  shared_users: number;
+  status: 'active' | 'disabled';
+  created_at: string;
+}
+
+export interface PPPoEProfileTable {
+  id: number;
+  device_id: number;
+  name: string;
+  local_address: string | null;
+  remote_address: string | null;
+  rate_limit: string | null;
+  status: 'active' | 'disabled';
+  created_at: string;
+}
+
+export interface UserSessionTable {
+  id: number;
+  device_id: number;
+  username: string;
+  user_type: 'hotspot' | 'pppoe';
+  ip_address: string | null;
+  data_usage_bytes: number;
+  session_start: string;
+  session_end: string | null;
+  status: 'active' | 'ended';
+}
