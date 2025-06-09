@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AddPPPoEUserDialog } from './AddPPPoEUserDialog';
 import { EditPPPoEUserDialog } from './EditPPPoEUserDialog';
-import { Plus, Edit, Trash2, RefreshCw, Eye, MessageCircle, DollarSign } from 'lucide-react';
+import { Plus, Edit, Trash2, RefreshCw, Eye, MessageCircle, DollarSign, User, Phone, MapPin, Globe, Monitor } from 'lucide-react';
 
 export const PPPoEUsers = () => {
   const [showAddDialog, setShowAddDialog] = React.useState(false);
@@ -291,104 +291,149 @@ export const PPPoEUsers = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>User Details</TableHead>
-                      <TableHead>Connection</TableHead>
-                      <TableHead>Contact & Device</TableHead>
-                      <TableHead>Service</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {users.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell>
-                          <div className="space-y-1">
-                            <div className="font-medium">{user.username}</div>
-                            {user.real_name && (
-                              <div className="text-sm text-muted-foreground">{user.real_name}</div>
-                            )}
-                            {user.address && (
-                              <div className="text-xs text-muted-foreground">{user.address}</div>
-                            )}
-                            <Badge variant={user.status === 'active' ? 'default' : 'secondary'}>
-                              {user.status}
-                            </Badge>
-                          </div>
-                        </TableCell>
-                        
-                        <TableCell>
-                          <div className="space-y-1">
-                            <div className="text-sm">
-                              <span className="font-medium">Profile:</span> {user.profile}
-                            </div>
-                            <div className="text-sm">
-                              <span className="font-medium">Service:</span> {user.service}
-                            </div>
-                            {user.ip_address && (
-                              <div className="text-sm">
-                                <span className="font-medium">IP:</span> {user.ip_address}
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-
-                        <TableCell>
-                          <div className="space-y-2">
-                            {user.whatsapp_contact && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleWhatsAppClick(user.whatsapp_contact)}
-                                className="flex items-center space-x-1"
-                              >
-                                <MessageCircle className="h-3 w-3" />
-                                <span className="text-xs">WhatsApp</span>
-                              </Button>
-                            )}
-                            {user.remote_device && (
-                              <div className="text-xs text-muted-foreground">
-                                <span className="font-medium">Remote:</span> {user.remote_device}
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-
-                        <TableCell>
-                          <div className="space-y-1">
-                            {user.service_cost && (
-                              <div className="flex items-center space-x-1 text-sm">
-                                <DollarSign className="h-3 w-3" />
-                                <span>{formatCurrency(user.service_cost)}</span>
-                              </div>
-                            )}
-                            <div className="text-xs text-muted-foreground">
-                              Created: {formatDate(user.created_at)}
-                            </div>
-                          </div>
-                        </TableCell>
-
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
-                            <Button variant="outline" size="sm" onClick={() => handleEditUser(user)}>
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={() => handleDeleteUser(user.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="min-w-[150px]">Account Info</TableHead>
+                        <TableHead className="min-w-[120px]">Password</TableHead>
+                        <TableHead className="min-w-[150px]">Customer Details</TableHead>
+                        <TableHead className="min-w-[120px]">Contact</TableHead>
+                        <TableHead className="min-w-[200px]">Address</TableHead>
+                        <TableHead className="min-w-[120px]">Network</TableHead>
+                        <TableHead className="min-w-[120px]">Remote Device</TableHead>
+                        <TableHead className="min-w-[100px]">Service</TableHead>
+                        <TableHead className="min-w-[120px]">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {users.map((user) => (
+                        <TableRow key={user.id} className="hover:bg-muted/50">
+                          <TableCell>
+                            <div className="space-y-1">
+                              <div className="font-mono text-sm font-medium">{user.username}</div>
+                              <div className="text-sm">
+                                <span className="font-medium">Profile:</span> {user.profile}
+                              </div>
+                              <div className="text-sm">
+                                <span className="font-medium">Service:</span> {user.service}
+                              </div>
+                              <Badge variant={user.status === 'active' ? 'default' : 'secondary'} className="text-xs">
+                                {user.status}
+                              </Badge>
+                            </div>
+                          </TableCell>
+                          
+                          <TableCell>
+                            <div className="font-mono text-sm bg-muted px-2 py-1 rounded">
+                              {user.password}
+                            </div>
+                          </TableCell>
+
+                          <TableCell>
+                            <div className="space-y-1">
+                              {user.real_name ? (
+                                <div className="flex items-center space-x-1">
+                                  <User className="h-3 w-3" />
+                                  <span className="text-sm font-medium">{user.real_name}</span>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">No name provided</span>
+                              )}
+                            </div>
+                          </TableCell>
+
+                          <TableCell>
+                            <div className="space-y-2">
+                              {user.whatsapp_contact ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleWhatsAppClick(user.whatsapp_contact)}
+                                  className="flex items-center space-x-1 text-xs"
+                                >
+                                  <MessageCircle className="h-3 w-3" />
+                                  <span>{user.whatsapp_contact}</span>
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">No contact</span>
+                              )}
+                            </div>
+                          </TableCell>
+
+                          <TableCell>
+                            <div className="space-y-1">
+                              {user.address ? (
+                                <div className="flex items-start space-x-1">
+                                  <MapPin className="h-3 w-3 mt-0.5 text-muted-foreground" />
+                                  <span className="text-sm text-wrap">{user.address}</span>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">No address</span>
+                              )}
+                            </div>
+                          </TableCell>
+
+                          <TableCell>
+                            <div className="space-y-1">
+                              {user.ip_address ? (
+                                <div className="flex items-center space-x-1">
+                                  <Globe className="h-3 w-3" />
+                                  <span className="font-mono text-sm">{user.ip_address}</span>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">Dynamic IP</span>
+                              )}
+                            </div>
+                          </TableCell>
+
+                          <TableCell>
+                            <div className="space-y-1">
+                              {user.remote_device ? (
+                                <div className="flex items-center space-x-1">
+                                  <Monitor className="h-3 w-3" />
+                                  <span className="font-mono text-sm">{user.remote_device}</span>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">Not set</span>
+                              )}
+                            </div>
+                          </TableCell>
+
+                          <TableCell>
+                            <div className="space-y-1">
+                              {user.service_cost && (
+                                <div className="flex items-center space-x-1 text-sm">
+                                  <DollarSign className="h-3 w-3" />
+                                  <span className="font-medium">{formatCurrency(user.service_cost)}</span>
+                                </div>
+                              )}
+                              <div className="text-xs text-muted-foreground">
+                                Created: {formatDate(user.created_at)}
+                              </div>
+                            </div>
+                          </TableCell>
+
+                          <TableCell>
+                            <div className="flex items-center space-x-1">
+                              <Button variant="outline" size="sm" onClick={() => handleEditUser(user)}>
+                                <Edit className="h-3 w-3" />
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={() => handleDeleteUser(user.id)}>
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
 
                 {/* Summary Statistics */}
                 <Card className="bg-muted/30">
                   <CardContent className="p-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
                       <div className="text-center">
                         <div className="text-lg font-bold text-blue-600">{users.length}</div>
                         <div className="text-muted-foreground">Total Users</div>
@@ -398,6 +443,12 @@ export const PPPoEUsers = () => {
                           {users.filter(u => u.status === 'active').length}
                         </div>
                         <div className="text-muted-foreground">Active Users</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-orange-600">
+                          {users.filter(u => u.whatsapp_contact).length}
+                        </div>
+                        <div className="text-muted-foreground">With Contact</div>
                       </div>
                       <div className="text-center">
                         <div className="text-lg font-bold text-purple-600">
