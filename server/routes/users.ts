@@ -96,6 +96,65 @@ router.post('/hotspot', async (req, res) => {
   }
 });
 
+// Update hotspot user
+router.put('/hotspot/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { username, password, profile, status } = req.body;
+    
+    console.log('Updating hotspot user:', id);
+
+    // Get user and device information
+    const user = await db
+      .selectFrom('hotspot_users')
+      .innerJoin('devices', 'devices.id', 'hotspot_users.device_id')
+      .selectAll()
+      .where('hotspot_users.id', '=', parseInt(id))
+      .executeTakeFirst();
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    // Update in MikroTik if it's online and is a MikroTik device
+    if (user.type.toLowerCase() === 'mikrotik' && user.status === 'online') {
+      try {
+        const mikrotikService = createMikroTikService({
+          host: user.ip_address,
+          username: user.username,
+          password: user.password
+        });
+
+        // For now, we'll just log that we would update in MikroTik
+        console.log('Would update user in MikroTik:', { username, profile, status });
+      } catch (mikrotikError) {
+        console.error('Failed to update user in MikroTik:', mikrotikError);
+        // Continue with database update even if MikroTik update fails
+      }
+    }
+    
+    const updatedUser = await db
+      .updateTable('hotspot_users')
+      .set({
+        username,
+        password,
+        profile,
+        status,
+        updated_at: new Date().toISOString()
+      })
+      .where('id', '=', parseInt(id))
+      .returningAll()
+      .executeTakeFirstOrThrow();
+    
+    console.log('Hotspot user updated successfully');
+    res.json(updatedUser);
+  } catch (error) {
+    console.error('Error updating hotspot user:', error);
+    res.status(500).json({ error: 'Failed to update user' });
+  }
+});
+
 // Get PPPoE users for a device
 router.get('/pppoe/:deviceId', async (req, res) => {
   try {
@@ -190,6 +249,66 @@ router.post('/pppoe', async (req, res) => {
   }
 });
 
+// Update PPPoE user
+router.put('/pppoe/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { username, password, profile, service, status } = req.body;
+    
+    console.log('Updating PPPoE user:', id);
+
+    // Get user and device information
+    const user = await db
+      .selectFrom('pppoe_users')
+      .innerJoin('devices', 'devices.id', 'pppoe_users.device_id')
+      .selectAll()
+      .where('pppoe_users.id', '=', parseInt(id))
+      .executeTakeFirst();
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    // Update in MikroTik if it's online and is a MikroTik device
+    if (user.type.toLowerCase() === 'mikrotik' && user.status === 'online') {
+      try {
+        const mikrotikService = createMikroTikService({
+          host: user.ip_address,
+          username: user.username,
+          password: user.password
+        });
+
+        // For now, we'll just log that we would update in MikroTik
+        console.log('Would update PPPoE user in MikroTik:', { username, profile, service, status });
+      } catch (mikrotikError) {
+        console.error('Failed to update PPPoE user in MikroTik:', mikrotikError);
+        // Continue with database update even if MikroTik update fails
+      }
+    }
+    
+    const updatedUser = await db
+      .updateTable('pppoe_users')
+      .set({
+        username,
+        password,
+        profile,
+        service,
+        status,
+        updated_at: new Date().toISOString()
+      })
+      .where('id', '=', parseInt(id))
+      .returningAll()
+      .executeTakeFirstOrThrow();
+    
+    console.log('PPPoE user updated successfully');
+    res.json(updatedUser);
+  } catch (error) {
+    console.error('Error updating PPPoE user:', error);
+    res.status(500).json({ error: 'Failed to update user' });
+  }
+});
+
 // Delete hotspot user
 router.delete('/hotspot/:id', async (req, res) => {
   try {
@@ -233,7 +352,7 @@ router.delete('/hotspot/:id', async (req, res) => {
       }
     }
     
-    const result = await db
+    await db
       .deleteFrom('hotspot_users')
       .where('id', '=', parseInt(id))
       .executeTakeFirst();
@@ -289,7 +408,7 @@ router.delete('/pppoe/:id', async (req, res) => {
       }
     }
     
-    const result = await db
+    await db
       .deleteFrom('pppoe_users')
       .where('id', '=', parseInt(id))
       .executeTakeFirst();

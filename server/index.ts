@@ -1,14 +1,31 @@
 import express from 'express';
+import session from 'express-session';
 import dotenv from 'dotenv';
 import { setupStaticServing } from './static-serve.js';
 import devicesRouter from './routes/devices.js';
 import usersRouter from './routes/users.js';
 import profilesRouter from './routes/profiles.js';
 import reportsRouter from './routes/reports.js';
+import authRouter from './routes/auth.js';
+import adminRouter from './routes/admin.js';
+import systemRouter from './routes/system.js';
+import { requireAuth } from './middleware/auth.js';
 
 dotenv.config();
 
 const app = express();
+
+// Session configuration
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
 
 // Security middleware
 app.use((req, res, next) => {
@@ -83,11 +100,16 @@ app.get('/api/db-test', async (req, res) => {
   }
 });
 
-// API routes - mount these before the catch-all
-app.use('/api/devices', devicesRouter);
-app.use('/api/users', usersRouter);
-app.use('/api/profiles', profilesRouter);
-app.use('/api/reports', reportsRouter);
+// Auth routes (no authentication required)
+app.use('/api/auth', authRouter);
+
+// Protected API routes - require authentication
+app.use('/api/devices', requireAuth, devicesRouter);
+app.use('/api/users', requireAuth, usersRouter);
+app.use('/api/profiles', requireAuth, profilesRouter);
+app.use('/api/reports', requireAuth, reportsRouter);
+app.use('/api/admin', requireAuth, adminRouter);
+app.use('/api/system', requireAuth, systemRouter);
 
 // 404 handler for API routes - use middleware instead of wildcards
 app.use('/api', (req, res, next) => {
@@ -148,6 +170,8 @@ export async function startServer(port: number) {
       console.log(`📁 Data directory: ${process.env.DATA_DIRECTORY || './data'}`);
       console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🔗 Health check: http://localhost:${port}/api/health`);
+      console.log(`🔐 Default login: admin / admin123`);
+      console.log(`📊 System monitor: Available at /api/system/stats`);
     });
 
     // Graceful shutdown handlers

@@ -5,6 +5,8 @@ export interface Database {
   hotspot_profiles: HotspotProfileTable;
   pppoe_profiles: PPPoEProfileTable;
   user_sessions: UserSessionTable;
+  admin_users: AdminUserTable;
+  user_auth_sessions: AuthSessionTable;
 }
 
 export interface DeviceTable {
@@ -76,4 +78,23 @@ export interface UserSessionTable {
   session_start: string;
   session_end: string | null;
   status: 'active' | 'ended';
+}
+
+export interface AdminUserTable {
+  id: number;
+  username: string;
+  password: string;
+  email: string | null;
+  role: string;
+  status: 'active' | 'disabled';
+  last_login: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AuthSessionTable {
+  id: string;
+  user_id: number;
+  expires_at: string;
+  created_at: string;
 }

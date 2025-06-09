@@ -5,10 +5,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AddPPPoEUserDialog } from './AddPPPoEUserDialog';
+import { EditPPPoEUserDialog } from './EditPPPoEUserDialog';
 import { Plus, Edit, Trash2, RefreshCw, Eye } from 'lucide-react';
 
 export const PPPoEUsers = () => {
   const [showAddDialog, setShowAddDialog] = React.useState(false);
+  const [showEditDialog, setShowEditDialog] = React.useState(false);
+  const [selectedUser, setSelectedUser] = React.useState(null);
   const [selectedDevice, setSelectedDevice] = React.useState('');
   const [devices, setDevices] = React.useState([]);
   const [users, setUsers] = React.useState([]);
@@ -75,7 +78,7 @@ export const PPPoEUsers = () => {
       if (response.ok) {
         const result = await response.json();
         console.log('PPPoE sync completed:', result);
-        fetchUsers(selectedDevice); // Refresh the list
+        fetchUsers(selectedDevice);
         alert(result.message);
       } else {
         const error = await response.json();
@@ -120,9 +123,10 @@ export const PPPoEUsers = () => {
     }
   };
 
-  const handleEditUser = (userId: number) => {
-    console.log('Edit PPPoE user:', userId);
-    alert('Edit PPPoE user feature coming soon!');
+  const handleEditUser = (user) => {
+    console.log('Edit PPPoE user:', user);
+    setSelectedUser(user);
+    setShowEditDialog(true);
   };
 
   const handleDeleteUser = async (userId: number) => {
@@ -138,7 +142,7 @@ export const PPPoEUsers = () => {
       
       if (response.ok) {
         console.log('PPPoE user deleted successfully');
-        fetchUsers(selectedDevice); // Refresh the list
+        fetchUsers(selectedDevice);
         alert('PPPoE user deleted successfully');
       } else {
         const error = await response.json();
@@ -152,7 +156,11 @@ export const PPPoEUsers = () => {
   };
 
   const handleUserAdded = () => {
-    fetchUsers(selectedDevice); // Refresh the list
+    fetchUsers(selectedDevice);
+  };
+
+  const handleUserUpdated = () => {
+    fetchUsers(selectedDevice);
   };
 
   const formatDate = (dateString: string) => {
@@ -293,7 +301,7 @@ export const PPPoEUsers = () => {
                       <TableCell>{formatDate(user.created_at)}</TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
-                          <Button variant="outline" size="sm" onClick={() => handleEditUser(user.id)}>
+                          <Button variant="outline" size="sm" onClick={() => handleEditUser(user)}>
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button variant="outline" size="sm" onClick={() => handleDeleteUser(user.id)}>
@@ -315,6 +323,13 @@ export const PPPoEUsers = () => {
         onOpenChange={setShowAddDialog}
         selectedDevice={selectedDevice}
         onUserAdded={handleUserAdded}
+      />
+
+      <EditPPPoEUserDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        user={selectedUser}
+        onUserUpdated={handleUserUpdated}
       />
     </div>
   );

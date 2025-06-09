@@ -5,10 +5,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AddHotspotUserDialog } from './AddHotspotUserDialog';
-import { Plus, RefreshCw, Edit, Trash2, Eye } from 'lucide-react';
+import { EditHotspotUserDialog } from './EditHotspotUserDialog';
+import { Plus, Edit, Trash2, RefreshCw, Eye } from 'lucide-react';
 
 export const HotspotUsers = () => {
   const [showAddDialog, setShowAddDialog] = React.useState(false);
+  const [showEditDialog, setShowEditDialog] = React.useState(false);
+  const [selectedUser, setSelectedUser] = React.useState(null);
   const [selectedDevice, setSelectedDevice] = React.useState('');
   const [devices, setDevices] = React.useState([]);
   const [users, setUsers] = React.useState([]);
@@ -75,7 +78,7 @@ export const HotspotUsers = () => {
       if (response.ok) {
         const result = await response.json();
         console.log('Sync completed:', result);
-        fetchUsers(selectedDevice); // Refresh the list
+        fetchUsers(selectedDevice);
         alert(result.message);
       } else {
         const error = await response.json();
@@ -120,9 +123,10 @@ export const HotspotUsers = () => {
     }
   };
 
-  const handleEditUser = (userId: number) => {
-    console.log('Edit user:', userId);
-    alert('Edit user feature coming soon!');
+  const handleEditUser = (user) => {
+    console.log('Edit user:', user);
+    setSelectedUser(user);
+    setShowEditDialog(true);
   };
 
   const handleDeleteUser = async (userId: number) => {
@@ -138,7 +142,7 @@ export const HotspotUsers = () => {
       
       if (response.ok) {
         console.log('User deleted successfully');
-        fetchUsers(selectedDevice); // Refresh the list
+        fetchUsers(selectedDevice);
         alert('User deleted successfully');
       } else {
         const error = await response.json();
@@ -152,7 +156,11 @@ export const HotspotUsers = () => {
   };
 
   const handleUserAdded = () => {
-    fetchUsers(selectedDevice); // Refresh the list
+    fetchUsers(selectedDevice);
+  };
+
+  const handleUserUpdated = () => {
+    fetchUsers(selectedDevice);
   };
 
   const formatDate = (dateString: string) => {
@@ -291,7 +299,7 @@ export const HotspotUsers = () => {
                       <TableCell>{formatDate(user.created_at)}</TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
-                          <Button variant="outline" size="sm" onClick={() => handleEditUser(user.id)}>
+                          <Button variant="outline" size="sm" onClick={() => handleEditUser(user)}>
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button variant="outline" size="sm" onClick={() => handleDeleteUser(user.id)}>
@@ -313,6 +321,13 @@ export const HotspotUsers = () => {
         onOpenChange={setShowAddDialog}
         selectedDevice={selectedDevice}
         onUserAdded={handleUserAdded}
+      />
+
+      <EditHotspotUserDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        user={selectedUser}
+        onUserUpdated={handleUserUpdated}
       />
     </div>
   );
