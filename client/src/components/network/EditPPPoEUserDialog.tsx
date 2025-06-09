@@ -25,6 +25,8 @@ export const EditPPPoEUserDialog = ({ open, onOpenChange, user, onUserUpdated }:
   const [remoteDevice, setRemoteDevice] = React.useState('');
   const [serviceCost, setServiceCost] = React.useState('');
   const [loading, setLoading] = React.useState(false);
+  const [profiles, setProfiles] = React.useState([]);
+  const [loadingProfiles, setLoadingProfiles] = React.useState(false);
 
   React.useEffect(() => {
     if (user && open) {
@@ -39,8 +41,34 @@ export const EditPPPoEUserDialog = ({ open, onOpenChange, user, onUserUpdated }:
       setWhatsappContact(user.whatsapp_contact || '');
       setRemoteDevice(user.remote_device || '');
       setServiceCost(user.service_cost ? user.service_cost.toString() : '');
+      
+      // Fetch profiles for this device
+      if (user.device_id) {
+        fetchProfiles(user.device_id);
+      }
     }
   }, [user, open]);
+
+  const fetchProfiles = async (deviceId) => {
+    setLoadingProfiles(true);
+    try {
+      console.log('Fetching PPPoE profiles for device:', deviceId);
+      const response = await fetch(`/api/profiles/pppoe/${deviceId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setProfiles(data);
+        console.log('PPPoE profiles loaded:', data.length);
+      } else {
+        console.error('Failed to fetch profiles');
+        setProfiles([]);
+      }
+    } catch (error) {
+      console.error('Error fetching profiles:', error);
+      setProfiles([]);
+    } finally {
+      setLoadingProfiles(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,17 +162,28 @@ export const EditPPPoEUserDialog = ({ open, onOpenChange, user, onUserUpdated }:
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="profile">Profile *</Label>
-              <Select value={profile} onValueChange={setProfile} required>
+              <Select value={profile} onValueChange={setProfile} required disabled={loadingProfiles}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select profile" />
+                  <SelectValue placeholder={loadingProfiles ? "Loading profiles..." : "Select profile"} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="default">Default</SelectItem>
-                  <SelectItem value="premium">Premium</SelectItem>
-                  <SelectItem value="basic">Basic</SelectItem>
-                  <SelectItem value="unlimited">Unlimited</SelectItem>
+                  {profiles.length === 0 && !loadingProfiles && (
+                    <SelectItem value={profile || "default"}>
+                      {profile || "Default"} (Current)
+                    </SelectItem>
+                  )}
+                  {profiles.map((prof) => (
+                    <SelectItem key={prof.id} value={prof.name}>
+                      {prof.name} {prof.rate_limit && `(${prof.rate_limit})`}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              {profiles.length === 0 && !loadingProfiles && (
+                <p className="text-xs text-amber-600">
+                  No profiles found. Current profile will be kept.
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">

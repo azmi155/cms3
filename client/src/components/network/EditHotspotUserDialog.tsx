@@ -18,6 +18,8 @@ export const EditHotspotUserDialog = ({ open, onOpenChange, user, onUserUpdated 
   const [profile, setProfile] = React.useState('');
   const [status, setStatus] = React.useState('');
   const [loading, setLoading] = React.useState(false);
+  const [profiles, setProfiles] = React.useState([]);
+  const [loadingProfiles, setLoadingProfiles] = React.useState(false);
 
   React.useEffect(() => {
     if (user && open) {
@@ -25,8 +27,34 @@ export const EditHotspotUserDialog = ({ open, onOpenChange, user, onUserUpdated 
       setPassword(user.password || '');
       setProfile(user.profile || '');
       setStatus(user.status || 'active');
+      
+      // Fetch profiles for this device
+      if (user.device_id) {
+        fetchProfiles(user.device_id);
+      }
     }
   }, [user, open]);
+
+  const fetchProfiles = async (deviceId) => {
+    setLoadingProfiles(true);
+    try {
+      console.log('Fetching hotspot profiles for device:', deviceId);
+      const response = await fetch(`/api/profiles/hotspot/${deviceId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setProfiles(data);
+        console.log('Hotspot profiles loaded:', data.length);
+      } else {
+        console.error('Failed to fetch profiles');
+        setProfiles([]);
+      }
+    } catch (error) {
+      console.error('Error fetching profiles:', error);
+      setProfiles([]);
+    } finally {
+      setLoadingProfiles(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,17 +130,28 @@ export const EditHotspotUserDialog = ({ open, onOpenChange, user, onUserUpdated 
 
           <div className="space-y-2">
             <Label htmlFor="profile">Profile</Label>
-            <Select value={profile} onValueChange={setProfile} required>
+            <Select value={profile} onValueChange={setProfile} required disabled={loadingProfiles}>
               <SelectTrigger>
-                <SelectValue placeholder="Select profile" />
+                <SelectValue placeholder={loadingProfiles ? "Loading profiles..." : "Select profile"} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="default">Default</SelectItem>
-                <SelectItem value="premium">Premium</SelectItem>
-                <SelectItem value="basic">Basic</SelectItem>
-                <SelectItem value="unlimited">Unlimited</SelectItem>
+                {profiles.length === 0 && !loadingProfiles && (
+                  <SelectItem value={profile || "default"}>
+                    {profile || "Default"} (Current)
+                  </SelectItem>
+                )}
+                {profiles.map((prof) => (
+                  <SelectItem key={prof.id} value={prof.name}>
+                    {prof.name} {prof.rate_limit && `(${prof.rate_limit})`}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
+            {profiles.length === 0 && !loadingProfiles && (
+              <p className="text-xs text-amber-600">
+                No profiles found. Current profile will be kept.
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">

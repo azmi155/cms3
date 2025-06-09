@@ -24,6 +24,50 @@ export const AddPPPoEUserDialog = ({ open, onOpenChange, selectedDevice, onUserA
   const [remoteDevice, setRemoteDevice] = React.useState('');
   const [serviceCost, setServiceCost] = React.useState('');
   const [loading, setLoading] = React.useState(false);
+  const [profiles, setProfiles] = React.useState([]);
+  const [loadingProfiles, setLoadingProfiles] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!open) {
+      setUsername('');
+      setPassword('');
+      setProfile('');
+      setService('');
+      setIpAddress('');
+      setRealName('');
+      setAddress('');
+      setWhatsappContact('');
+      setRemoteDevice('');
+      setServiceCost('');
+    }
+  }, [open]);
+
+  React.useEffect(() => {
+    if (selectedDevice && open) {
+      fetchProfiles();
+    }
+  }, [selectedDevice, open]);
+
+  const fetchProfiles = async () => {
+    setLoadingProfiles(true);
+    try {
+      console.log('Fetching PPPoE profiles for device:', selectedDevice);
+      const response = await fetch(`/api/profiles/pppoe/${selectedDevice}`);
+      if (response.ok) {
+        const data = await response.json();
+        setProfiles(data);
+        console.log('PPPoE profiles loaded:', data.length);
+      } else {
+        console.error('Failed to fetch profiles');
+        setProfiles([]);
+      }
+    } catch (error) {
+      console.error('Error fetching profiles:', error);
+      setProfiles([]);
+    } finally {
+      setLoadingProfiles(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,17 +175,26 @@ export const AddPPPoEUserDialog = ({ open, onOpenChange, selectedDevice, onUserA
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="profile">Profile *</Label>
-              <Select value={profile} onValueChange={setProfile} required>
+              <Select value={profile} onValueChange={setProfile} required disabled={loadingProfiles}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select profile" />
+                  <SelectValue placeholder={loadingProfiles ? "Loading profiles..." : "Select profile"} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="default">Default</SelectItem>
-                  <SelectItem value="premium">Premium</SelectItem>
-                  <SelectItem value="basic">Basic</SelectItem>
-                  <SelectItem value="unlimited">Unlimited</SelectItem>
+                  {profiles.length === 0 && !loadingProfiles && (
+                    <SelectItem value="default">Default (No profiles found)</SelectItem>
+                  )}
+                  {profiles.map((prof) => (
+                    <SelectItem key={prof.id} value={prof.name}>
+                      {prof.name} {prof.rate_limit && `(${prof.rate_limit})`}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              {profiles.length === 0 && !loadingProfiles && (
+                <p className="text-xs text-amber-600">
+                  No profiles found. Add profiles first or sync from MikroTik.
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
