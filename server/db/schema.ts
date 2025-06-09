@@ -42,6 +42,11 @@ export interface PPPoEUserTable {
   service: string;
   ip_address: string | null;
   status: 'active' | 'disabled';
+  real_name: string | null;
+  address: string | null;
+  whatsapp_contact: string | null;
+  remote_device: string | null;
+  service_cost: number | null;
   created_at: string;
   updated_at: string;
 }

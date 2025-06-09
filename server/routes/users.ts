@@ -179,7 +179,19 @@ router.get('/pppoe/:deviceId', async (req, res) => {
 // Add PPPoE user
 router.post('/pppoe', async (req, res) => {
   try {
-    const { device_id, username, password, profile, service } = req.body;
+    const { 
+      device_id, 
+      username, 
+      password, 
+      profile, 
+      service, 
+      ip_address,
+      real_name,
+      address,
+      whatsapp_contact,
+      remote_device,
+      service_cost
+    } = req.body;
     
     console.log('Adding PPPoE user:', { device_id, username, profile, service });
 
@@ -209,7 +221,8 @@ router.post('/pppoe', async (req, res) => {
           password: password,
           profile: profile,
           service: service,
-          comment: `Added via Dashboard - ${new Date().toISOString()}`
+          comment: `Added via Dashboard - ${new Date().toISOString()}`,
+          remoteAddress: ip_address
         });
 
         console.log('PPPoE user added to MikroTik successfully');
@@ -230,6 +243,12 @@ router.post('/pppoe', async (req, res) => {
         password,
         profile,
         service,
+        ip_address,
+        real_name,
+        address,
+        whatsapp_contact,
+        remote_device,
+        service_cost: service_cost ? parseFloat(service_cost) : null,
         status: 'active',
         created_at: now,
         updated_at: now
@@ -253,7 +272,19 @@ router.post('/pppoe', async (req, res) => {
 router.put('/pppoe/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { username, password, profile, service, status } = req.body;
+    const { 
+      username, 
+      password, 
+      profile, 
+      service, 
+      status,
+      ip_address,
+      real_name,
+      address,
+      whatsapp_contact,
+      remote_device,
+      service_cost
+    } = req.body;
     
     console.log('Updating PPPoE user:', id);
 
@@ -295,6 +326,12 @@ router.put('/pppoe/:id', async (req, res) => {
         profile,
         service,
         status,
+        ip_address,
+        real_name,
+        address,
+        whatsapp_contact,
+        remote_device,
+        service_cost: service_cost ? parseFloat(service_cost) : null,
         updated_at: new Date().toISOString()
       })
       .where('id', '=', parseInt(id))

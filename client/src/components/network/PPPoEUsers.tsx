@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AddPPPoEUserDialog } from './AddPPPoEUserDialog';
 import { EditPPPoEUserDialog } from './EditPPPoEUserDialog';
-import { Plus, Edit, Trash2, RefreshCw, Eye } from 'lucide-react';
+import { Plus, Edit, Trash2, RefreshCw, Eye, MessageCircle, DollarSign } from 'lucide-react';
 
 export const PPPoEUsers = () => {
   const [showAddDialog, setShowAddDialog] = React.useState(false);
@@ -155,6 +155,14 @@ export const PPPoEUsers = () => {
     }
   };
 
+  const handleWhatsAppClick = (phoneNumber: string) => {
+    if (phoneNumber) {
+      const cleanNumber = phoneNumber.replace(/\D/g, '');
+      const whatsappUrl = `https://wa.me/${cleanNumber}`;
+      window.open(whatsappUrl, '_blank');
+    }
+  };
+
   const handleUserAdded = () => {
     fetchUsers(selectedDevice);
   };
@@ -165,6 +173,14 @@ export const PPPoEUsers = () => {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('id-ID', { 
+      style: 'currency', 
+      currency: 'IDR',
+      minimumFractionDigits: 0
+    }).format(amount);
   };
 
   const selectedDeviceData = devices.find(d => d.id.toString() === selectedDevice);
@@ -274,45 +290,125 @@ export const PPPoEUsers = () => {
                 </div>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Username</TableHead>
-                    <TableHead>Profile</TableHead>
-                    <TableHead>Service</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>IP Address</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium">{user.username}</TableCell>
-                      <TableCell>{user.profile}</TableCell>
-                      <TableCell>{user.service}</TableCell>
-                      <TableCell>
-                        <Badge variant={user.status === 'active' ? 'default' : 'secondary'}>
-                          {user.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{user.ip_address || 'Dynamic'}</TableCell>
-                      <TableCell>{formatDate(user.created_at)}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <Button variant="outline" size="sm" onClick={() => handleEditUser(user)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={() => handleDeleteUser(user.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+              <div className="space-y-4">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User Details</TableHead>
+                      <TableHead>Connection</TableHead>
+                      <TableHead>Contact & Device</TableHead>
+                      <TableHead>Service</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <div className="font-medium">{user.username}</div>
+                            {user.real_name && (
+                              <div className="text-sm text-muted-foreground">{user.real_name}</div>
+                            )}
+                            {user.address && (
+                              <div className="text-xs text-muted-foreground">{user.address}</div>
+                            )}
+                            <Badge variant={user.status === 'active' ? 'default' : 'secondary'}>
+                              {user.status}
+                            </Badge>
+                          </div>
+                        </TableCell>
+                        
+                        <TableCell>
+                          <div className="space-y-1">
+                            <div className="text-sm">
+                              <span className="font-medium">Profile:</span> {user.profile}
+                            </div>
+                            <div className="text-sm">
+                              <span className="font-medium">Service:</span> {user.service}
+                            </div>
+                            {user.ip_address && (
+                              <div className="text-sm">
+                                <span className="font-medium">IP:</span> {user.ip_address}
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+
+                        <TableCell>
+                          <div className="space-y-2">
+                            {user.whatsapp_contact && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleWhatsAppClick(user.whatsapp_contact)}
+                                className="flex items-center space-x-1"
+                              >
+                                <MessageCircle className="h-3 w-3" />
+                                <span className="text-xs">WhatsApp</span>
+                              </Button>
+                            )}
+                            {user.remote_device && (
+                              <div className="text-xs text-muted-foreground">
+                                <span className="font-medium">Remote:</span> {user.remote_device}
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+
+                        <TableCell>
+                          <div className="space-y-1">
+                            {user.service_cost && (
+                              <div className="flex items-center space-x-1 text-sm">
+                                <DollarSign className="h-3 w-3" />
+                                <span>{formatCurrency(user.service_cost)}</span>
+                              </div>
+                            )}
+                            <div className="text-xs text-muted-foreground">
+                              Created: {formatDate(user.created_at)}
+                            </div>
+                          </div>
+                        </TableCell>
+
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            <Button variant="outline" size="sm" onClick={() => handleEditUser(user)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => handleDeleteUser(user.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+
+                {/* Summary Statistics */}
+                <Card className="bg-muted/30">
+                  <CardContent className="p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-blue-600">{users.length}</div>
+                        <div className="text-muted-foreground">Total Users</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-green-600">
+                          {users.filter(u => u.status === 'active').length}
+                        </div>
+                        <div className="text-muted-foreground">Active Users</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-purple-600">
+                          {formatCurrency(users.reduce((sum, u) => sum + (u.service_cost || 0), 0))}
+                        </div>
+                        <div className="text-muted-foreground">Total Revenue</div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             )}
           </CardContent>
         </Card>
