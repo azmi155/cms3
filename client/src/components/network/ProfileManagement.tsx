@@ -5,7 +5,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, Wifi, Users, RefreshCw, Download } from 'lucide-react';
+import { AddHotspotProfileDialog } from './AddHotspotProfileDialog';
+import { AddPPPoEProfileDialog } from './AddPPPoEProfileDialog';
+import { Plus, Edit, Trash2, Wifi, Users, RefreshCw, Download, AlertCircle } from 'lucide-react';
 
 export const ProfileManagement = () => {
   const [selectedDevice, setSelectedDevice] = React.useState('');
@@ -14,6 +16,8 @@ export const ProfileManagement = () => {
   const [pppoeProfiles, setPppoeProfiles] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [syncing, setSyncing] = React.useState(false);
+  const [showAddHotspotDialog, setShowAddHotspotDialog] = React.useState(false);
+  const [showAddPPPoEDialog, setShowAddPPPoEDialog] = React.useState(false);
 
   const fetchDevices = async () => {
     try {
@@ -84,7 +88,7 @@ export const ProfileManagement = () => {
         const result = await response.json();
         console.log('Profile sync completed:', result);
         alert(result.message);
-        await fetchProfiles(selectedDevice); // Refresh profiles
+        await fetchProfiles(selectedDevice);
       } else {
         const error = await response.json();
         console.error('Failed to sync profiles:', error);
@@ -109,9 +113,19 @@ export const ProfileManagement = () => {
         const liveProfiles = await response.json();
         console.log('Live profiles:', liveProfiles);
         
-        // Show live profiles in a simple alert for now
-        const profileNames = liveProfiles.map(p => p.name || 'Unnamed').join(', ');
-        alert(`Live ${profileType} profiles from MikroTik:\n${profileNames}`);
+        if (liveProfiles.length === 0) {
+          alert(`No ${profileType} profiles found on MikroTik device`);
+        } else {
+          const profileNames = liveProfiles.map(p => {
+            let details = `Name: ${p.name || 'Unnamed'}`;
+            if (p['rate-limit']) details += `\nRate Limit: ${p['rate-limit']}`;
+            if (p['session-timeout']) details += `\nSession Timeout: ${p['session-timeout']}`;
+            if (p['local-address']) details += `\nLocal Address: ${p['local-address']}`;
+            if (p['remote-address']) details += `\nRemote Address: ${p['remote-address']}`;
+            return details;
+          }).join('\n\n');
+          alert(`Live ${profileType} profiles from MikroTik (${liveProfiles.length}):\n\n${profileNames}`);
+        }
       } else {
         const error = await response.json();
         console.error('Failed to fetch live profiles:', error);
@@ -123,19 +137,34 @@ export const ProfileManagement = () => {
     }
   };
 
-  const handleAddProfile = (type: string) => {
-    console.log('Add profile:', type);
-    alert(`Add ${type} profile feature coming soon!`);
+  const handleDeleteProfile = async (profileId: number, profileType: 'hotspot' | 'pppoe') => {
+    if (!confirm('Are you sure you want to delete this profile? This will also delete it from MikroTik if the device is online.')) {
+      return;
+    }
+
+    try {
+      console.log('Deleting profile:', profileId, profileType);
+      const response = await fetch(`/api/profiles/${profileType}/${profileId}`, {
+        method: 'DELETE'
+      });
+      
+      if (response.ok) {
+        console.log('Profile deleted successfully');
+        fetchProfiles(selectedDevice);
+        alert('Profile deleted successfully');
+      } else {
+        const error = await response.json();
+        console.error('Failed to delete profile:', error);
+        alert(`Failed to delete profile: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Error deleting profile:', error);
+      alert('Error deleting profile');
+    }
   };
 
-  const handleEditProfile = (profileId: number) => {
-    console.log('Edit profile:', profileId);
-    alert('Edit profile feature coming soon!');
-  };
-
-  const handleDeleteProfile = (profileId: number) => {
-    console.log('Delete profile:', profileId);
-    alert('Delete profile feature coming soon!');
+  const handleProfileAdded = () => {
+    fetchProfiles(selectedDevice);
   };
 
   const selectedDeviceData = devices.find(d => d.id.toString() === selectedDevice);
@@ -189,12 +218,18 @@ export const ProfileManagement = () => {
               {isMikroTikOnline && (
                 <p className="text-sm text-green-600 mt-2">✓ MikroTik is online - Live sync available</p>
               )}
+              {selectedDeviceData.type?.toLowerCase() !== 'mikrotik' && (
+                <div className="flex items-center space-x-2 mt-2 text-sm text-amber-600">
+                  <AlertCircle className="h-4 w-4" />
+                  <span>Profile management is only available for MikroTik devices</span>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
       </Card>
 
-      {selectedDevice && (
+      {selectedDevice && selectedDeviceData?.type?.toLowerCase() === 'mikrotik' && (
         <Tabs defaultValue="hotspot" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="hotspot" className="flex items-center space-x-2">
@@ -228,7 +263,7 @@ export const ProfileManagement = () => {
                         </Button>
                       </>
                     )}
-                    <Button onClick={() => handleAddProfile('hotspot')}>
+                    <Button onClick={() => setShowAddHotspotDialog(true)}>
                       <Plus className="h-4 w-4 mr-2" />
                       Add Profile
                     </Button>
@@ -250,7 +285,7 @@ export const ProfileManagement = () => {
                           Sync from MikroTik
                         </Button>
                       )}
-                      <Button onClick={() => handleAddProfile('hotspot')}>
+                      <Button onClick={() => setShowAddHotspotDialog(true)}>
                         <Plus className="h-4 w-4 mr-2" />
                         Create First Profile
                       </Button>
@@ -280,10 +315,7 @@ export const ProfileManagement = () => {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center space-x-2">
-                              <Button variant="outline" size="sm" onClick={() => handleEditProfile(profile.id)}>
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button variant="outline" size="sm" onClick={() => handleDeleteProfile(profile.id)}>
+                              <Button variant="outline" size="sm" onClick={() => handleDeleteProfile(profile.id, 'hotspot')}>
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
@@ -318,7 +350,7 @@ export const ProfileManagement = () => {
                         </Button>
                       </>
                     )}
-                    <Button onClick={() => handleAddProfile('pppoe')}>
+                    <Button onClick={() => setShowAddPPPoEDialog(true)}>
                       <Plus className="h-4 w-4 mr-2" />
                       Add Profile
                     </Button>
@@ -340,7 +372,7 @@ export const ProfileManagement = () => {
                           Sync from MikroTik
                         </Button>
                       )}
-                      <Button onClick={() => handleAddProfile('pppoe')}>
+                      <Button onClick={() => setShowAddPPPoEDialog(true)}>
                         <Plus className="h-4 w-4 mr-2" />
                         Create First Profile
                       </Button>
@@ -370,10 +402,7 @@ export const ProfileManagement = () => {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center space-x-2">
-                              <Button variant="outline" size="sm" onClick={() => handleEditProfile(profile.id)}>
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button variant="outline" size="sm" onClick={() => handleDeleteProfile(profile.id)}>
+                              <Button variant="outline" size="sm" onClick={() => handleDeleteProfile(profile.id, 'pppoe')}>
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
@@ -388,6 +417,20 @@ export const ProfileManagement = () => {
           </TabsContent>
         </Tabs>
       )}
+
+      <AddHotspotProfileDialog 
+        open={showAddHotspotDialog} 
+        onOpenChange={setShowAddHotspotDialog}
+        selectedDevice={selectedDevice}
+        onProfileAdded={handleProfileAdded}
+      />
+
+      <AddPPPoEProfileDialog 
+        open={showAddPPPoEDialog} 
+        onOpenChange={setShowAddPPPoEDialog}
+        selectedDevice={selectedDevice}
+        onProfileAdded={handleProfileAdded}
+      />
     </div>
   );
 };
