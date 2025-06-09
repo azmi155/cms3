@@ -10,44 +10,168 @@ dotenv.config();
 
 const app = express();
 
-// Body parsing middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Security middleware
+app.use((req, res, next) => {
+  res.header('X-Content-Type-Options', 'nosniff');
+  res.header('X-Frame-Options', 'DENY');
+  res.header('X-XSS-Protection', '1; mode=block');
+  next();
+});
 
-// API routes
+// Body parsing middleware with size limits
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Request logging
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
+
+// Health check endpoint (before API routes)
+app.get('/api/health', (req, res) => {
+  try {
+    console.log('Health check endpoint called');
+    const dataDirectory = process.env.DATA_DIRECTORY || './data';
+    
+    res.json({ 
+      status: 'ok', 
+      timestamp: new Date().toISOString(),
+      database: dataDirectory ? 'configured' : 'not configured',
+      dataDirectory: dataDirectory,
+      nodeEnv: process.env.NODE_ENV || 'development'
+    });
+    return;
+  } catch (error) {
+    console.error('Health check error:', error);
+    res.status(500).json({ 
+      status: 'error', 
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+    return;
+  }
+});
+
+// Database test endpoint (before API routes)
+app.get('/api/db-test', async (req, res) => {
+  try {
+    const { db } = await import('./db/connection.js');
+    console.log('Testing database connection...');
+    
+    // Simple test query
+    const result = await db
+      .selectFrom('devices')
+      .select(db.fn.count('id').as('count'))
+      .executeTakeFirst();
+    
+    res.json({ 
+      status: 'Database connection successful',
+      deviceCount: result?.count || 0,
+      timestamp: new Date().toISOString()
+    });
+    return;
+  } catch (error) {
+    console.error('Database test error:', error);
+    res.status(500).json({ 
+      status: 'Database connection failed',
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      timestamp: new Date().toISOString()
+    });
+    return;
+  }
+});
+
+// API routes - mount these before the catch-all
 app.use('/api/devices', devicesRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/profiles', profilesRouter);
 app.use('/api/reports', reportsRouter);
 
-// Test endpoint
-app.get('/api/health', (req, res) => {
-  console.log('Health check endpoint called');
-  res.json({ 
-    status: 'ok', 
-    timestamp: new Date().toISOString(),
-    database: process.env.DATA_DIRECTORY ? 'configured' : 'not configured'
+// 404 handler for API routes - use middleware instead of wildcards
+app.use('/api', (req, res, next) => {
+  // If we reach here, no API route matched
+  res.status(404).json({ 
+    error: 'API endpoint not found',
+    path: req.path,
+    method: req.method
   });
+  return;
+});
+
+// Global error handler
+app.use((err: any, req: any, res: any, next: any) => {
+  console.error('Global error handler:', err);
+  
+  if (err.type === 'entity.parse.failed') {
+    res.status(400).json({ error: 'Invalid JSON in request body' });
+    return;
+  }
+  
+  if (err.type === 'entity.too.large') {
+    res.status(413).json({ error: 'Request entity too large' });
+    return;
+  }
+  
+  res.status(500).json({ 
+    error: 'Internal server error',
+    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+  });
+  return;
 });
 
 // Export a function to start the server
-export async function startServer(port) {
+export async function startServer(port: number) {
   try {
+    // Test database connection on startup
+    console.log('Testing database connection...');
+    const { db } = await import('./db/connection.js');
+    
+    // Verify database schema
+    try {
+      const tables = await db.introspection.getTables();
+      console.log('Database tables found:', tables.map(t => t.name));
+    } catch (dbError) {
+      console.error('Database introspection failed:', dbError);
+      console.log('Continuing anyway - database might need initialization');
+    }
+    
+    // Setup static serving for production (AFTER all API routes)
     if (process.env.NODE_ENV === 'production') {
       setupStaticServing(app);
+      console.log('Static serving configured for production');
     }
-    app.listen(port, () => {
-      console.log(`API Server running on port ${port}`);
-      console.log(`Data directory: ${process.env.DATA_DIRECTORY || './data'}`);
+    
+    const server = app.listen(port, () => {
+      console.log(`✅ API Server running on port ${port}`);
+      console.log(`📁 Data directory: ${process.env.DATA_DIRECTORY || './data'}`);
+      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`🔗 Health check: http://localhost:${port}/api/health`);
     });
-  } catch (err) {
-    console.error('Failed to start server:', err);
+
+    // Graceful shutdown handlers
+    const gracefulShutdown = (signal: string) => {
+      console.log(`${signal} received, shutting down gracefully`);
+      server.close(() => {
+        console.log('Server closed');
+        process.exit(0);
+      });
+    };
+
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+    return server;
+  } catch (err: any) {
+    console.error('❌ Failed to start server:', err);
+    console.error('Stack trace:', err.stack);
     process.exit(1);
   }
 }
 
 // Start the server directly if this is the main module
 if (import.meta.url === `file://${process.argv[1]}`) {
-  console.log('Starting server...');
-  startServer(process.env.PORT || 3001);
+  console.log('🚀 Starting server...');
+  startServer(parseInt(process.env.PORT || '3001'));
 }

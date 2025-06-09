@@ -3,7 +3,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Server, Wifi, Globe, Settings, AlertCircle, CheckCircle } from 'lucide-react';
@@ -21,6 +20,7 @@ export const AddDeviceDialog = ({ open, onOpenChange, onDeviceAdded }: AddDevice
   const [username, setUsername] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [loading, setLoading] = React.useState(false);
+  const [errors, setErrors] = React.useState({});
 
   const deviceTypes = [
     {
@@ -55,30 +55,107 @@ export const AddDeviceDialog = ({ open, onOpenChange, onDeviceAdded }: AddDevice
 
   const selectedDeviceType = deviceTypes.find(type => type.value === deviceType);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Reset form when dialog closes
+  React.useEffect(() => {
+    if (!open) {
+      setDeviceName('');
+      setDeviceType('');
+      setIpAddress('');
+      setUsername('');
+      setPassword('');
+      setErrors({});
+      setLoading(false);
+    }
+  }, [open]);
+
+  const validateForm = () => {
+    const newErrors = {};
+    
+    if (!deviceName || !deviceName.trim()) {
+      newErrors.deviceName = 'Device name is required';
+    } else if (deviceName.trim().length > 100) {
+      newErrors.deviceName = 'Device name must be less than 100 characters';
+    }
+    
+    if (!deviceType) {
+      newErrors.deviceType = 'Device type is required';
+    }
+    
+    if (!ipAddress || !ipAddress.trim()) {
+      newErrors.ipAddress = 'IP address is required';
+    } else {
+      // Validate IP format
+      const ipRegex = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/;
+      if (!ipRegex.test(ipAddress.trim())) {
+        newErrors.ipAddress = 'Invalid IP address format (e.g., 192.168.1.1)';
+      } else {
+        // Validate IP range
+        const parts = ipAddress.trim().split('.');
+        const invalidParts = parts.filter(part => {
+          const num = parseInt(part);
+          return num < 0 || num > 255;
+        });
+        if (invalidParts.length > 0) {
+          newErrors.ipAddress = 'IP address octets must be between 0-255';
+        }
+      }
+    }
+    
+    if (!username || !username.trim()) {
+      newErrors.username = 'Username is required';
+    }
+    
+    if (!password) {
+      newErrors.password = 'Password is required';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      console.log('Form validation failed:', errors);
+      return;
+    }
+    
     setLoading(true);
+    setErrors({});
 
     try {
-      console.log('Adding device:', { deviceName, deviceType, ipAddress, username });
+      const deviceData = {
+        name: deviceName.trim(),
+        type: deviceType,
+        ip_address: ipAddress.trim(),
+        username: username.trim(),
+        password: password
+      };
+
+      console.log('Adding device with data:', deviceData);
       
       const response = await fetch('/api/devices', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          name: deviceName,
-          type: deviceType,
-          ip_address: ipAddress,
-          username,
-          password
-        })
+        body: JSON.stringify(deviceData)
       });
 
+      const responseText = await response.text();
+      console.log('Server response:', responseText);
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Failed to parse response JSON:', parseError);
+        throw new Error('Invalid server response');
+      }
+
       if (response.ok) {
-        const device = await response.json();
-        console.log('Device added successfully:', device);
+        console.log('Device added successfully:', data);
         
         // Reset form
         setDeviceName('');
@@ -86,16 +163,25 @@ export const AddDeviceDialog = ({ open, onOpenChange, onDeviceAdded }: AddDevice
         setIpAddress('');
         setUsername('');
         setPassword('');
+        setErrors({});
         
-        onDeviceAdded();
+        // Close dialog and trigger refresh
         onOpenChange(false);
+        onDeviceAdded();
         
         // Show success message
-        alert(`Device "${deviceName}" added successfully! You can now sync it to test connectivity.`);
+        alert(`Device "${deviceData.name}" added successfully! You can now sync it to test connectivity.`);
       } else {
-        const error = await response.json();
-        console.error('Failed to add device:', error);
-        alert(`Failed to add device: ${error.error}`);
+        console.error('Failed to add device:', data);
+        
+        // Handle specific error cases
+        if (data.error && data.error.includes('IP address already exists')) {
+          setErrors({ ipAddress: data.error });
+        } else if (data.error && data.error.includes('Missing required fields')) {
+          alert('Please fill in all required fields');
+        } else {
+          alert(`Failed to add device: ${data.error || 'Unknown error'}`);
+        }
       }
     } catch (error) {
       console.error('Error adding device:', error);
@@ -105,8 +191,52 @@ export const AddDeviceDialog = ({ open, onOpenChange, onDeviceAdded }: AddDevice
     }
   };
 
-  const validateForm = () => {
-    return deviceName && deviceType && ipAddress && username && password;
+  const handleCancel = () => {
+    setDeviceName('');
+    setDeviceType('');
+    setIpAddress('');
+    setUsername('');
+    setPassword('');
+    setErrors({});
+    onOpenChange(false);
+  };
+
+  const handleTypeSelect = (type) => {
+    setDeviceType(type);
+    // Clear device type error when user selects a type
+    if (errors.deviceType) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.deviceType;
+        return newErrors;
+      });
+    }
+  };
+
+  const handleInputChange = (field, value) => {
+    // Clear specific field error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
+    
+    switch (field) {
+      case 'deviceName':
+        setDeviceName(value);
+        break;
+      case 'ipAddress':
+        setIpAddress(value);
+        break;
+      case 'username':
+        setUsername(value);
+        break;
+      case 'password':
+        setPassword(value);
+        break;
+    }
   };
 
   return (
@@ -122,7 +252,7 @@ export const AddDeviceDialog = ({ open, onOpenChange, onDeviceAdded }: AddDevice
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Device Type Selection */}
           <div className="space-y-3">
-            <Label>Device Type</Label>
+            <Label>Device Type *</Label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {deviceTypes.map((type) => (
                 <Card 
@@ -131,8 +261,8 @@ export const AddDeviceDialog = ({ open, onOpenChange, onDeviceAdded }: AddDevice
                     deviceType === type.value 
                       ? 'border-primary bg-primary/5' 
                       : 'hover:border-muted-foreground/50'
-                  }`}
-                  onClick={() => setDeviceType(type.value)}
+                  } ${errors.deviceType ? 'border-red-500' : ''}`}
+                  onClick={() => handleTypeSelect(type.value)}
                 >
                   <CardContent className="p-4">
                     <div className="flex items-start space-x-3">
@@ -157,6 +287,9 @@ export const AddDeviceDialog = ({ open, onOpenChange, onDeviceAdded }: AddDevice
                 </Card>
               ))}
             </div>
+            {errors.deviceType && (
+              <p className="text-sm text-red-500">{errors.deviceType}</p>
+            )}
 
             {selectedDeviceType && (
               <Card className="bg-muted/30">
@@ -182,9 +315,13 @@ export const AddDeviceDialog = ({ open, onOpenChange, onDeviceAdded }: AddDevice
                 id="deviceName"
                 placeholder="e.g., Main Router, Office Switch"
                 value={deviceName}
-                onChange={(e) => setDeviceName(e.target.value)}
+                onChange={(e) => handleInputChange('deviceName', e.target.value)}
+                className={errors.deviceName ? 'border-red-500' : ''}
                 required
               />
+              {errors.deviceName && (
+                <p className="text-sm text-red-500">{errors.deviceName}</p>
+              )}
               <p className="text-xs text-muted-foreground">
                 A friendly name to identify this device
               </p>
@@ -196,10 +333,13 @@ export const AddDeviceDialog = ({ open, onOpenChange, onDeviceAdded }: AddDevice
                 id="ipAddress"
                 placeholder="192.168.1.1"
                 value={ipAddress}
-                onChange={(e) => setIpAddress(e.target.value)}
-                pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"
+                onChange={(e) => handleInputChange('ipAddress', e.target.value)}
+                className={errors.ipAddress ? 'border-red-500' : ''}
                 required
               />
+              {errors.ipAddress && (
+                <p className="text-sm text-red-500">{errors.ipAddress}</p>
+              )}
               <p className="text-xs text-muted-foreground">
                 The device's network IP address
               </p>
@@ -214,9 +354,13 @@ export const AddDeviceDialog = ({ open, onOpenChange, onDeviceAdded }: AddDevice
                 id="username"
                 placeholder="admin"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={(e) => handleInputChange('username', e.target.value)}
+                className={errors.username ? 'border-red-500' : ''}
                 required
               />
+              {errors.username && (
+                <p className="text-sm text-red-500">{errors.username}</p>
+              )}
               <p className="text-xs text-muted-foreground">
                 Device management username
               </p>
@@ -229,9 +373,13 @@ export const AddDeviceDialog = ({ open, onOpenChange, onDeviceAdded }: AddDevice
                 type="password"
                 placeholder="Enter password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => handleInputChange('password', e.target.value)}
+                className={errors.password ? 'border-red-500' : ''}
                 required
               />
+              {errors.password && (
+                <p className="text-sm text-red-500">{errors.password}</p>
+              )}
               <p className="text-xs text-muted-foreground">
                 Device management password
               </p>
@@ -256,12 +404,12 @@ export const AddDeviceDialog = ({ open, onOpenChange, onDeviceAdded }: AddDevice
 
           {/* Form Actions */}
           <div className="flex justify-end space-x-2 pt-4 border-t">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={handleCancel} disabled={loading}>
               Cancel
             </Button>
             <Button 
               type="submit" 
-              disabled={loading || !validateForm()}
+              disabled={loading}
               className="min-w-[100px]"
             >
               {loading ? 'Adding...' : 'Add Device'}
